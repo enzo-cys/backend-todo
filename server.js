@@ -6,7 +6,7 @@ const app = express();
 
 app.get('/' , (req , res) => {
 
-    res.json("Bienvenue sur le backend ToDo")
+    res.json({ response: "Bienvenue sur le backend ToDo"})
 });
 
 const PORT = process.env.PORT || 5000;
