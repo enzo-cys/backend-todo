@@ -68,10 +68,53 @@ app.post('/api/todos', async (req, res) => {
 // Utiliser req.params.id pour récupérer l'ID
 // SQL: UPDATE todos SET text = ?, completed = ? WHERE id = ?
 
+app.put('/api/todos/:id', async (req, res) => {
+    try {
+        const sql = 'UPDATE `todos` SET `text` = ?, `completed` = ? WHERE `id` = ?';
+        const todoId = req.params.id;
+
+        // Validation des paramètres
+        if (!req.body.text) {
+            return res.status(400).json({ message: "Le champ 'text' est requis" });
+        }
+        if (req.body.completed === undefined) {
+            return res.status(400).json({ message: "Le champ 'completed' est requis" });
+        }
+        const values = [req.body.text, req.body.completed, todoId];
+
+        const [result] = await connection.execute(sql, values);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Tâche non trouvée" });
+        }
+        res.json({
+            message: "Tâche mise à jour avec succès",
+            data: { id: todoId, text: req.body.text, completed: req.body.completed }
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: "Erreur serveur", error: err.message });
+    }
+});
+
 // TODO: Exercice 2 - Implémenter DELETE /api/todos/:id
 // Supprimer une tâche par son ID
 // Utiliser req.params.id pour récupérer l'ID
 // SQL: DELETE FROM todos WHERE id = ?
+
+app.delete('/api/todos/:id', async (req, res) => {
+    try {
+        const sql = 'DELETE FROM `todos` WHERE `id` = ?';
+        const todoId = req.params.id;
+        const [result] = await connection.execute(sql, [todoId]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Tâche non trouvée" });
+        }
+        res.json({ message: "Tâche supprimée avec succès" });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: "Erreur serveur", error: err.message });
+    }
+});
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 5000;
