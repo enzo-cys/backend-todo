@@ -1,124 +1,48 @@
-// Importation des dépendances
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import mysql from 'mysql2/promise';
+import authRoutes from './routes/auth.js';
+import todosRoutes from './routes/todos.js';
 
 // Initialisation de l'application Express
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Middleware pour parser le JSON
+
+// MIDDLEWARES
+// CORS : autorise les requêtes depuis d'autres domaines (React sur le port 3000)
+app.use(cors());
+
+// Parser le JSON des requêtes
 app.use(express.json());
-
-// Connexion à la base de données MySQL
-const connection = await mysql.createConnection({
-    host: 'localhost',
-    user: 'todo-admin',
-    password: 'todo-password',
-    database: 'todolist_db',
-});
 
 // Route racine - Message de bienvenue
 app.get('/', (req, res) => {
-    res.json({ message: "Bienvenue sur l'API ToDo" });
+    res.json({ 
+        message: "Bienvenue sur l'API TodoList",
+        version: "2.0.0",
+        endpoints: {
+            auth: "/api/auth (POST /register, POST /login)",
+            todos: "/api/todos (GET, POST, PUT/:id, DELETE/:id) - Protégé par JWT"
+        }
+    });
 });
 
-// GET /api/todos - Récupère toutes les tâches
-app.get('/api/todos', async (req, res) => {
-    try {
-        const [results] = await connection.query('SELECT * FROM todos');
+// Routes d'authentification (register, login)
+app.use('/api/auth', authRoutes);
 
-        res.json({ message: "Liste des tâches", data: results });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Erreur serveur", error: err.message });
-    }
+// Routes des todos (CRUD) - Protégées par JWT
+app.use('/api/todos', todosRoutes);
+
+// GESTION D'ERREURS 404
+app.use((req, res) => {
+    res.status(404).json({ 
+        message: "Route non trouvée" 
+    });
 });
 
-// POST /api/todos - Ajoute une nouvelle tâche
-app.post('/api/todos', async (req, res) => {
-    try {
-        const sql = 'INSERT INTO `todos`(`text`, `completed`) VALUES (?, ?)';
 
-        // Validation des paramètres
-        if (!req.body.text) {
-            return res.status(400).json({ message: "Le champ 'text' est requis" });
-        }
-
-        if (!req.body.completed) {
-            return res.status(400).json({ message: "Le champ 'completed' est requis" });
-        }
-
-        const values = [req.body.text, req.body.completed || false];
-
-        const [result] = await connection.execute(sql, values);
-
-        res.status(201).json({
-            message: "Tâche créée avec succès",
-            data: { id: result.insertId, text: req.body.text, completed: req.body.completed || false }
-        });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Erreur serveur", error: err.message });
-    }
-});
-
-// TODO: Exercice 1 - Implémenter PUT /api/todos/:id
-// Modifier une tâche existante (text et/ou completed)
-// Utiliser req.params.id pour récupérer l'ID
-// SQL: UPDATE todos SET text = ?, completed = ? WHERE id = ?
-
-app.put('/api/todos/:id', async (req, res) => {
-    try {
-        const sql = 'UPDATE `todos` SET `text` = ?, `completed` = ? WHERE `id` = ?';
-        const todoId = req.params.id;
-
-        // Validation des paramètres
-        if (!req.body.text) {
-            return res.status(400).json({ message: "Le champ 'text' est requis" });
-        }
-        if (req.body.completed === undefined) {
-            return res.status(400).json({ message: "Le champ 'completed' est requis" });
-        }
-        const values = [req.body.text, req.body.completed, todoId];
-
-        const [result] = await connection.execute(sql, values);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Tâche non trouvée" });
-        }
-        res.json({
-            message: "Tâche mise à jour avec succès",
-            data: { id: todoId, text: req.body.text, completed: req.body.completed }
-        });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Erreur serveur", error: err.message });
-    }
-});
-
-// TODO: Exercice 2 - Implémenter DELETE /api/todos/:id
-// Supprimer une tâche par son ID
-// Utiliser req.params.id pour récupérer l'ID
-// SQL: DELETE FROM todos WHERE id = ?
-
-app.delete('/api/todos/:id', async (req, res) => {
-    try {
-        const sql = 'DELETE FROM `todos` WHERE `id` = ?';
-        const todoId = req.params.id;
-        const [result] = await connection.execute(sql, [todoId]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Tâche non trouvée" });
-        }
-        res.json({ message: "Tâche supprimée avec succès" });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Erreur serveur", error: err.message });
-    }
-});
-
-// Démarrage du serveur
-const PORT = process.env.PORT || 5000;
-
+// DÉMARRAGE DU SERVEUR
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur : http://localhost:${PORT}`);
 });
